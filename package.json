@@ -16,6 +16,7 @@
     "@nrwl/js": "15.8.1",
     "@nrwl/linter": "15.8.1",
     "@nrwl/node": "^15.8.1",
+    "@nrwl/webpack": "15.8.1",
     "@nrwl/workspace": "15.8.1",
     "@types/aws-lambda": "^8.10.111",
     "@types/jest": "^29.4.0",
