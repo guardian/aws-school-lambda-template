@@ -8,9 +8,9 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "zip -r ../my-lambda-name.zip *"
+          "zip -r ../message-receiver.zip *"
         ],
-        "cwd": "dist/packages/my-lambda-name"
+        "cwd": "dist/packages/message-receiver"
       },
       "dependsOn": [{
         "projects": "self",
