@@ -1,5 +1,6 @@
 import {Bucket} from "./config";
 import {GetObjectCommand, S3Client} from "@aws-sdk/client-s3";
+import {TextDecoder} from "util";
 
 const s3Client = new S3Client({region: process.env["AWS_REGION"]});
 
@@ -8,33 +9,30 @@ interface EventData {
   content: string;
 }
 
-export async function parse(source:string, rawContent:ReadableStream):Promise<EventData[]> {
+export async function parse(source:string, rawContent:ReadableStream<Uint8Array>):Promise<EventData[]> {
   const results:EventData[] = [];
   let buffer = "";
 
   const reader = rawContent.getReader();
+  const decoder = new TextDecoder();
 
   // eslint-disable-next-line no-constant-condition
   while(true) {
     const {done, value} = await reader.read();
-    console.log("DEBUG got ", value);
     if(done) {
-      console.log("done");
+      console.log("All content loaded");
       return results;
     }
-    buffer += value as string;
+    buffer += decoder.decode(value);
 
-    console.log(`DEBUG buffer is '${buffer}'`);
     const lines = buffer.split("\n");
-    console.log(`DEBUG split into ${lines.length} lines`);
+
     let currentContent = "";
     let lastDelimiter = 0;
 
     lines.forEach((line, lineNumber)=>{
       const trimmed = line.replace(/^\s+/,"");
-      console.log(`DEBUG ${lineNumber}: '${trimmed}'`);
       if(trimmed=="%" && currentContent!="") { //we hit a delimiter
-        console.log("DEBUG hit delimiter on line ", lineNumber);
         results.push({
           source,
           content: currentContent
@@ -43,7 +41,6 @@ export async function parse(source:string, rawContent:ReadableStream):Promise<Ev
         lastDelimiter = lineNumber;
       } else {
         currentContent += trimmed + "\n";  //otherwise accumulate the data
-        console.log(`DEBUG accumulator is '${currentContent}'`)
       }
     });
 
@@ -63,7 +60,9 @@ export async function loadAndParse(s3path:string):Promise<EventData[]> {
   const response = await s3Client.send(req);
   console.log(`Loaded in s3://${Bucket}/${s3path}, size is ${response.ContentLength}`);
 
-  return parse(s3path, response.Body.transformToWebStream());
+  const events = await parse(s3path, response.Body.transformToWebStream());
+  console.log(`Loaded ${events.length} potential events`);
+  return events;
 }
 
 export type {EventData};

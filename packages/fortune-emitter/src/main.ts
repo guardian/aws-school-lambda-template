@@ -14,7 +14,7 @@ loadAndParse(FileName)
   });
 
 function asyncDelay():Promise<void>  {
-  return new Promise((resolve)=>setTimeout(()=>resolve, 200));
+  return new Promise((resolve)=>setTimeout(()=>resolve(), 200));
 }
 
 function getRandomInt(max:number) {
