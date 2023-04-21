@@ -23,5 +23,8 @@ export const handler:SNSHandler = (event) => {
     const content = safeParse(evt.Sns);
     console.log(`Message ${ctr}: ${evt.Sns.TopicArn} from ${content.source} at ${evt.Sns.Timestamp}`);
     console.log(content.content);
-  })
+  });
+  if(Math.random()>0.5) {
+    throw "Oooh crumbs!";
+  }
 }
