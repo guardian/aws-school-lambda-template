@@ -4,9 +4,11 @@ import {FileName} from "./config";
 import {sendMessage} from "./sns";
 
 let possibleEvents = [];
-loadAndParse(FileName)
+Promise.all(FileName.split(/\s*,\s*/).map(loadAndParse))
   .then((loadedEvents)=>{
-    possibleEvents = loadedEvents;
+    loadedEvents.forEach((moreEvents)=> {
+      possibleEvents = possibleEvents.concat(moreEvents);
+    });
   })
   .catch((err)=>{
     console.error(`Could not load in events from '${FileName}': `, err);
