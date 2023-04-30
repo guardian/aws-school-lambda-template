@@ -74,6 +74,11 @@ async function performDeletion(TableName: string, keysToDelete: string[]):Promis
   return processingLoop(deleteOps)
 }
 
+async function TimedPromise(timeout:number) {
+  console.log(`Waiting ${timeout/1000} seconds...`);
+  return new Promise<void>((resolve)=>setTimeout(resolve, timeout));
+}
+
 async function main() {
   const args = process.argv.slice(2);
 
@@ -87,13 +92,34 @@ async function main() {
   const response = prompt("OK to continue (y/n)? ");
   if(response.toLowerCase()!="y") process.exit(2);
 
-  let lastPage:PageResult = {KeysToDelete: []};
+  const iteratePage:(p:PageResult,retries:number)=>Promise<void|BatchWriteItemCommandOutput> = async (lastPage:PageResult, retries:number)=> {
+    if(retries>0) await TimedPromise(1000*retries);
+    try {
+      const nextPage = await retrievePage(tableName, source, lastPage.LastScannedKey);
+      let result;
+      if(nextPage.KeysToDelete.length > 0) {
+        result = await performDeletion(tableName, nextPage.KeysToDelete);
+        console.log(`DEBUG Our consumed capacity for that page was: ${result.ConsumedCapacity ? JSON.stringify(result.ConsumedCapacity) : "undefined"}`);
+      } else {
+        console.log(`WARN Nothing found to delete!`);
+      }
 
-  do {
-    lastPage = await retrievePage(tableName, source, lastPage.LastScannedKey);
-    const result = await performDeletion(tableName, lastPage.KeysToDelete);
-    console.log(`DEBUG Our consumed capacity for that page was: ${result.ConsumedCapacity ? JSON.stringify(result.ConsumedCapacity) : "undefined"}`);
-  } while(!!lastPage.LastScannedKey);
+      if (!!nextPage.LastScannedKey) {
+        return iteratePage(nextPage, 0);
+      } else {
+        return result;
+      }
+    } catch(err) {
+      if((err as Error).name==="ProvisionedThroughputExceededException") {
+        console.log("We got a ProvisionedThroughputException, holding off...");
+        return iteratePage(lastPage, retries+1)
+      } else {
+        throw err
+      }
+    }
+  }
+
+  return iteratePage({KeysToDelete: []}, 0);
 }
 
 main()
